@@ -11,7 +11,7 @@ History/autosugest is content aware, so default arguments with the same name wil
 Status
 ------
 
-Verion 0.0
+Verion 0.0 [![Build Status](https://travis-ci.org/Forau/go-cop.svg?branch=master)](https://travis-ci.org/Forau/go-cop)
 Still in very early stage. Everything might change.
 
 Usage
