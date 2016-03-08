@@ -1,4 +1,7 @@
 # go-cop
+[![Build Status](https://travis-ci.org/Forau/gocop.svg?branch=master)](https://travis-ci.org/Forau/gocop)
+[![GoDoc](https://godoc.org/github.com/Forau/gocop?status.svg)](http://godoc.org/github.com/Forau/gocop)
+
 GO - Command Parser
 ===================
 
@@ -11,7 +14,7 @@ History/autosugest is content aware, so default arguments with the same name wil
 Status
 ------
 
-Verion 0.0 [![Build Status](https://travis-ci.org/Forau/go-cop.svg?branch=master)](https://travis-ci.org/Forau/go-cop)
+Verion 0.0
 Still in very early stage. Everything might change.
 
 Usage
@@ -25,13 +28,12 @@ Arguments are separated by whitespace, so if you need to send an argument with s
 Bugs / Todo
 -----------
 
-Linebreak during quoted strings does not allow you to continue on next line
-Greedy arguments are not yet implemented
-Make easier to use
-Create examples
-Make 'worlds' swappable, so commands can control following states.
+- Linebreak during quoted strings does not allow you to continue on next line
+- Make easier to use
+- Create examples
+- Make 'worlds' swappable, so commands can control following states.
 
-and more...
+- and more...
 
 
 

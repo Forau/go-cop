@@ -11,7 +11,7 @@ func assertEqual(t *testing.T, exp, act string) {
 }
 
 func TestConsumeArgumentTokens(t *testing.T) {
-	tokens := TokenizeRaw("Start  \t\t   'Next unterminated")
+	tokens := Tokenize("Start  \t\t   'Next unterminated")
 	t.Log("Tokens: ", tokens)
 
 	consumed, remaining := consumeArgumentTokens(tokens)
@@ -23,7 +23,7 @@ func TestConsumeArgumentTokens(t *testing.T) {
 }
 
 func TestConsumeArgumentTokensWithOnlyOneToken(t *testing.T) {
-	tokens := TokenizeRaw("Start")
+	tokens := Tokenize("Start")
 	t.Log("Tokens: ", tokens)
 
 	consumed, remaining := consumeArgumentTokens(tokens)
@@ -59,7 +59,7 @@ func TestArgNode_assignChildNodes(t *testing.T) {
 
 	t.Logf("Root: %+v, C1: %+v, C1: %+v, C1: %+v\n", n, c1, c2, c3)
 
-	tokens := TokenizeRaw("C2 does evil stuff")
+	tokens := Tokenize("C2 does evil stuff")
 	t.Log("Tokens: ", tokens)
 
 	assignment := n.assignChildNodes(tokens)
@@ -90,7 +90,7 @@ func TestArgNode_generateCommandAssingPathsWithOptionalPath(t *testing.T) {
 		t.Log(u)
 	}
 
-	tokens := TokenizeRaw("cmd sub  ")
+	tokens := Tokenize("cmd sub  ")
 	t.Log("Tokens: ", tokens)
 
 	t.Logf("\nStringify: %+v\nTrimString: %+v\n", tokens.Stringify(), tokens.Trimmed().String())
@@ -116,7 +116,7 @@ func TestArgNode_SugestAutoComplete(t *testing.T) {
 		return []string{}
 	}
 
-	tokens := TokenizeRaw("cmd aut")
+	tokens := Tokenize("cmd aut")
 	t.Log("Tokens: ", tokens)
 
 	sugestions := n.SugestAutoComplete(tokens)
@@ -136,7 +136,7 @@ func TestCommandAssignPath_Invoke(t *testing.T) {
 	})
 	t.Log("World node: ", n)
 
-	tokens := TokenizeRaw("cmd argument1 arg2\\ nr\\ 2 'Argument Nummer 3'")
+	tokens := Tokenize("cmd argument1 arg2\\ nr\\ 2 'Argument Nummer 3'")
 	t.Log("Tokens: ", tokens)
 
 	paths := n.generateCommandAssingPaths(tokens)
@@ -150,4 +150,28 @@ func TestCommandAssignPath_Invoke(t *testing.T) {
 	paths[0].Invoke(drc)
 
 	t.Log("RunContext: ", drc)
+}
+
+func TestCommandAssignPath_GreedyPath(t *testing.T) {
+	n := NewWorldNode()
+	n.AddSubCommand("cmd").AddArgument("arg1").Optional().AddArgument("arg2").Times(1, 4)
+	t.Log("World node: ", n)
+
+	paths := n.generateCommandAssingPaths(Tokenize("cmd onlyArg"))
+	for idx, p := range paths {
+		t.Log("Path[", idx, "] ", p.Score(), " -> ", p.String())
+	}
+
+	if len(paths) != 2 && paths[0].leaf().Node.Name != paths[1].leaf().Node.Name {
+		t.Error("Expected two results, where arg1 is assigned once (for autocomplete only), and arg2 the other time")
+	}
+
+	paths = n.generateCommandAssingPaths(Tokenize("cmd one two three four five six seven eight"))
+	for idx, p := range paths {
+		t.Log("Path[", idx, "] ", p.Score(), " -> ", p.String())
+	}
+
+	if len(paths) != 4 || paths[3].leaf().Tokens.Stringify() != "two three four five" {
+		t.Log("Expected 4 results")
+	}
 }

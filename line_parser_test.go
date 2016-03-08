@@ -3,11 +3,13 @@ package gocop
 import (
 	"strings"
 	"testing"
+
+	"log"
 )
 
 func TestTokenSet_Trimmed(t *testing.T) {
 	trimAndCompare := func(input string, trimmedSizeDiff int) {
-		tok := TokenizeRaw(input)
+		tok := Tokenize(input)
 		tokTrim := tok.Trimmed()
 		t.Logf("IN: '%s' -> '%+v' Trimmed()-> '%+v'\n", input, tok, tokTrim)
 		if len(tok) != trimmedSizeDiff+len(tokTrim) {
@@ -43,7 +45,7 @@ func TestAcceptWhile_EscapeWrapper(t *testing.T) {
 	testStr := "Skip this \\\" quote. \" is the one"
 	scanner := scanner{input: testStr}
 
-	escScan := BuildEscapeSafeAcceptFn(func(r rune) bool {
+	escScan := buildEscapeSafeAcceptFn(func(r rune) bool {
 		return r != '"'
 	})
 
@@ -57,7 +59,7 @@ func TestAcceptWhile_EscapeWrapper(t *testing.T) {
 func TestScanCommandString_BasicStart(t *testing.T) {
 	testStr := "     \t\n Start with\\ some \n\n\t whitespaces"
 	expected := []string{"Start", "with\\ some", "whitespaces"}
-	tokens := Tokenize(testStr)
+	tokens := Tokenize(testStr).Filter(TokenNoWhitespace)
 	t.Log("Got tokens:", tokens)
 
 	for i := 0; i < len(expected); i++ {
@@ -76,11 +78,11 @@ And \'  'Single\' Quoted'  `
 		"\\'", "'Single\\' Quoted'"}
 
 	t.Log("Tokenizing ", testStr)
-	tokens := TokenizeToStrings(testStr)
+	tokens := Tokenize(testStr).Filter(TokenNoWhitespace)
 	t.Log("Got tokens:", tokens)
 
 	for i := 0; i < len(expected); i++ {
-		if tokens[i] != expected[i] {
+		if tokens[i].val != expected[i] {
 			t.Error("Expected '", expected[i], "' but got '", tokens[i], "'")
 		}
 	}
@@ -98,4 +100,14 @@ func TestTokenizeNoneTerminatedDQString(t *testing.T) {
 	if tok.ToString() != "And not terminate" {
 		t.Error("Failed to remove quote in ToString method")
 	}
+}
+
+func ExampleTokenSet_Filter() {
+	tokens := Tokenize("\"A \"'input' string")
+
+	log.Print("Initial tokens: ", tokens)
+
+	log.Print("Filtered on not whitespace: ", tokens.Filter(TokenNoWhitespace))
+
+	log.Print("Filtered on single or double quoted string: ", tokens.Filter(TokenSQuoted|TokenDQuoted))
 }

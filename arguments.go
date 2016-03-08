@@ -48,7 +48,7 @@ func consumeArgumentTokens(in TokenSet) (consumed, remaining TokenSet) {
 	return
 }
 
-type ArgNodeAssignment struct {
+type argNodeAssignment struct {
 	Node   *ArgNode
 	Tokens TokenSet
 
@@ -58,26 +58,38 @@ type ArgNodeAssignment struct {
 // Accepts Tokens, and returns a slice of slices of the tokens not used up, and a bool to indicate acceptance
 // Normally a node would return a slice with only one subslice in that starts at the token for next argument.
 // However, for optional nodes, or multi-nodes, the result should be all permutations of possible accepts.
-// TODO: Rewrite
-type acceptPermutationsFn func(node *ArgNode, in TokenSet) (accepted []ArgNodeAssignment)
+type acceptPermutationsFn func(node *ArgNode, in TokenSet) (accepted []argNodeAssignment)
 
-func worldAcceptorFn(node *ArgNode, in TokenSet) (accepted []ArgNodeAssignment) {
+func worldAcceptorFn(node *ArgNode, in TokenSet) (accepted []argNodeAssignment) {
 	panic("acceptPermutationsFn should not be called on root node")
 }
-func commandAcceptorFn(node *ArgNode, in TokenSet) (accepted []ArgNodeAssignment) {
+func commandAcceptorFn(node *ArgNode, in TokenSet) (accepted []argNodeAssignment) {
 	if len(in) > 0 {
 		if strings.Index(in.Stringify(), node.Name) == 0 ||
 			(len(in) == 1 && strings.Index(node.Name, in.Stringify()) == 0) {
 			con, rem := consumeArgumentTokens(in)
-			accepted = append(accepted, ArgNodeAssignment{Node: node, Tokens: con, overflow: rem})
+			accepted = append(accepted, argNodeAssignment{Node: node, Tokens: con, overflow: rem})
 		}
 	}
 	return
 }
-func singleArgumentAcceptorFn(node *ArgNode, in TokenSet) (accepted []ArgNodeAssignment) {
+func singleArgumentAcceptorFn(node *ArgNode, in TokenSet) (accepted []argNodeAssignment) {
 	con, rem := consumeArgumentTokens(in)
 	if len(con) > 0 {
-		accepted = append(accepted, ArgNodeAssignment{Node: node, Tokens: con, overflow: rem})
+		accepted = append(accepted, argNodeAssignment{Node: node, Tokens: con, overflow: rem})
+	}
+	return
+}
+
+func repeatAcceptPerm(node *ArgNode, ap acceptPermutationsFn, prefix, in TokenSet, count int) (accepted []argNodeAssignment) {
+	if count > 0 {
+		for _, na := range ap(node, in) {
+			fullTok := append([]Token{}, prefix...)
+			fullTok = append(fullTok, na.Tokens...)
+			na.Tokens = fullTok
+			accepted = append(accepted, na)
+			accepted = append(accepted, repeatAcceptPerm(node, ap, fullTok, na.overflow, count-1)...)
+		}
 	}
 	return
 }
@@ -146,9 +158,8 @@ func (an *ArgNode) Optional() *ArgNode {
 func (an *ArgNode) Times(min, max uint64) *ArgNode {
 	if min < 0 || max < min || max < 1 {
 		log.Panic("Cant deal with min ", min, " and max ", max)
-	} else if max > 1 {
-		log.Print("WARN: matching multiple times is not yet suported")
-		max = 1
+	} else if (an.TypeFlags & (OptionalNode | MultiArgNode)) != 0 {
+		log.Panic("Already set to optional or multi use. Can not modify again.")
 	}
 
 	if min == 0 {
@@ -159,11 +170,17 @@ func (an *ArgNode) Times(min, max uint64) *ArgNode {
 	}
 
 	oldApFn := an.acceptPermutationsFn
-	an.acceptPermutationsFn = func(node *ArgNode, in TokenSet) (accepted []ArgNodeAssignment) {
-		// TODO: Add handling for max > 1
-		accepted = append(accepted, oldApFn(node, in)...) // Add self
+	an.acceptPermutationsFn = func(node *ArgNode, in TokenSet) (accepted []argNodeAssignment) {
+		oneMatchAssign := oldApFn(node, in)
+		accepted = append(accepted, oneMatchAssign...)
 		if min < 1 {
 			accepted = append(accepted, node.assignChildNodes(in)...) // Add children, and skip self. (IE. optional)
+		}
+		if max > 1 {
+			for _, na := range oneMatchAssign {
+				// TODO: We could get duplications in the result here.  We should filter...
+				accepted = append(accepted, repeatAcceptPerm(node, oldApFn, na.Tokens, na.overflow, int(max-1))...)
+			}
 		}
 		return
 	}
@@ -196,7 +213,7 @@ func (an *ArgNode) SugestAutoComplete(in TokenSet) []string {
 	return an.Sugest(an, in)
 }
 
-func (an *ArgNode) assignChildNodes(in TokenSet) (assignments []ArgNodeAssignment) {
+func (an *ArgNode) assignChildNodes(in TokenSet) (assignments []argNodeAssignment) {
 	for _, c := range an.Children {
 		assignments = append(assignments, c.acceptPermutationsFn(c, in)...)
 	}
@@ -254,7 +271,7 @@ func (an *ArgNode) Usage(prfix string) (ret []string) {
 }
 
 func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
-	tokens := TokenizeRaw(input)
+	tokens := Tokenize(input)
 	if tokens.HasText() {
 		paths := an.generateCommandAssingPaths(tokens)
 		log.Print("Invoked PATHS: ", paths)
@@ -286,10 +303,10 @@ func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
 	return nil
 }
 
-type commandAssignPath []ArgNodeAssignment
+type commandAssignPath []argNodeAssignment
 
 // Gets the last node in the path
-func (cap *commandAssignPath) leaf() *ArgNodeAssignment {
+func (cap *commandAssignPath) leaf() *argNodeAssignment {
 	return &(*cap)[len(*cap)-1]
 }
 
@@ -332,11 +349,11 @@ func (cap *commandAssignPath) String() string {
 	return buffer.String()
 }
 
-func (cap *commandAssignPath) append(ass *ArgNodeAssignment) {
+func (cap *commandAssignPath) append(ass *argNodeAssignment) {
 	*cap = append(*cap, *ass)
 }
 
-func (cap *commandAssignPath) fork(ass *ArgNodeAssignment) *commandAssignPath {
+func (cap *commandAssignPath) fork(ass *argNodeAssignment) *commandAssignPath {
 	fork := append(commandAssignPath{}, (*cap)...)
 	fork = append(fork, *ass)
 	return &fork
@@ -383,7 +400,7 @@ func (cap *commandAssignPath) parseNext(result procAssignmentResult) procAssignm
 		if leaf.Tokens.HasText() && leaf.Tokens[len(leaf.Tokens)-1].Type == TokenEOF {
 			for _, c := range leaf.Node.Children {
 				newCap := append(commandAssignPath{}, (*cap)...)
-				newCap = append(newCap, ArgNodeAssignment{Node: c})
+				newCap = append(newCap, argNodeAssignment{Node: c})
 				result(&newCap)
 			}
 		}

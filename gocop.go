@@ -1,5 +1,8 @@
 // Copyright (c) 2016 Forau @ github.com. MIT License.
 
+// GO-COP is a utility to add functions easy to use from the tty.
+// Autocomplete sugestions is context aware, and the command structure is quite liberal,
+// meening that multiple optional or greedy arguments are allowed, though not encurraged.
 package gocop
 
 import (
@@ -66,7 +69,7 @@ func NewCommandParser() *CommandParser {
 
 func (cp *CommandParser) AutoCompleter(line string) (c []string) {
 	if cp.world != nil {
-		tokens := TokenizeRaw(line)
+		tokens := Tokenize(line)
 		c = append(c, cp.world.SugestAutoComplete(tokens)...)
 	}
 	return // TODO: Implement

@@ -31,7 +31,7 @@ func (t *Token) ToString() string {
 }
 
 func (t *Token) IsWhitespace() bool {
-	return t.Type == TokenEOF || t.Type == TokenWhitespace
+	return t.Type&TokenAllWhitespace != 0
 }
 
 // Will use -1 as EOF rune
@@ -40,12 +40,15 @@ const eof = -1
 type TokenType uint64
 
 const (
-	TokenError TokenType = iota
+	TokenError TokenType = 1 << iota
 	TokenEOF
 	TokenString
 	TokenDQuoted
 	TokenSQuoted
 	TokenWhitespace
+
+	TokenNoWhitespace  = TokenString | TokenDQuoted | TokenSQuoted
+	TokenAllWhitespace = TokenEOF | TokenWhitespace
 )
 
 type TokenSet []Token
@@ -63,6 +66,7 @@ func (ts TokenSet) Stringify() string {
 	return ts.Trimmed().String()
 }
 
+// Returns a slice without leading or trailing whitespaces
 func (ts TokenSet) Trimmed() TokenSet {
 	foundNoneWS := false
 	start := 0
@@ -80,6 +84,19 @@ func (ts TokenSet) Trimmed() TokenSet {
 	return ts[start:end]
 }
 
+// Modifies this slice and only keep tokens having the type of keep.
+func (ts TokenSet) Filter(keep TokenType) TokenSet {
+	b := ts[:0]
+	for _, t := range ts {
+		if (t.Type & keep) != 0 {
+			b = append(b, t)
+		}
+	}
+	ts = b
+	return ts
+}
+
+// Checks if the set contains printable characters
 func (ts TokenSet) HasText() bool {
 	for _, t := range ts {
 		if !t.IsWhitespace() {
@@ -157,7 +174,7 @@ func (s *scanner) run() {
 	close(s.tokens)
 }
 
-func TokenizeRaw(input string) (tokens TokenSet) {
+func Tokenize(input string) (tokens TokenSet) {
 	s := scanner{
 		input:  input,
 		state:  scanStart,
@@ -170,26 +187,8 @@ func TokenizeRaw(input string) (tokens TokenSet) {
 	return
 }
 
-func Tokenize(input string) (tokens TokenSet) {
-	for _, tok := range TokenizeRaw(input) {
-		if tok.Type != TokenWhitespace {
-			tokens = append(tokens, tok)
-		}
-	}
-	return
-}
-
-func TokenizeToStrings(input string) (arr []string) {
-	for _, tok := range TokenizeRaw(input) {
-		if tok.Type != TokenWhitespace {
-			arr = append(arr, tok.val)
-		}
-	}
-	return
-}
-
 //
-func BuildEscapeSafeAcceptFn(af acceptFn) acceptFn {
+func buildEscapeSafeAcceptFn(af acceptFn) acceptFn {
 	skipOne := false
 	return func(r rune) bool {
 		if skipOne {
@@ -277,7 +276,7 @@ func makeGenericTypeScanner(typ TokenType, backslashSafe bool, nextState stateFn
 	af, methLeft := chainAcceptFn(afs...)
 	return func(s *scanner) stateFn {
 		if backslashSafe {
-			s.acceptWhile(BuildEscapeSafeAcceptFn(af))
+			s.acceptWhile(buildEscapeSafeAcceptFn(af))
 		} else {
 			s.acceptWhile(af)
 		}

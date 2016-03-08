@@ -35,7 +35,7 @@ func TestArgumentSugestor(t *testing.T) {
 	sarg22 := getArgumentAutoSlice("arg2.2")
 	*sarg22 = append(*sarg22, "argument2.2", "other2.2")
 
-	tokens := TokenizeRaw("cmd2 arg1 arg")
+	tokens := Tokenize("cmd2 arg1 arg")
 	t.Log("Tokens:", tokens)
 
 	sug1 := wn.SugestAutoComplete(tokens)

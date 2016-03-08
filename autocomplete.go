@@ -69,22 +69,22 @@ func getArgumentSugestorFn(name string) AcSugestorFn {
 }
 
 // A function that registers and applies the value on resultMap
-type AcInvokerFn func(assignment *ArgNodeAssignment, context RunContext)
+type AcInvokerFn func(assignment *argNodeAssignment, context RunContext)
 
-func (aif AcInvokerFn) Invoke(assignment *ArgNodeAssignment, context RunContext) {
+func (aif AcInvokerFn) Invoke(assignment *argNodeAssignment, context RunContext) {
 	aif(assignment, context)
 }
 
 type AcInvoker interface {
-	Invoke(assignment *ArgNodeAssignment, context RunContext)
+	Invoke(assignment *argNodeAssignment, context RunContext)
 }
 
-func nopInvokerFn(assignment *ArgNodeAssignment, context RunContext) {
+func nopInvokerFn(assignment *argNodeAssignment, context RunContext) {
 }
 
 func getArgumentInvokerFn(name string) AcInvokerFn {
 	sugestionSlice := getArgumentAutoSlice(name)
-	return func(assignment *ArgNodeAssignment, context RunContext) {
+	return func(assignment *argNodeAssignment, context RunContext) {
 		val := assignment.Tokens.Stringify()
 		*sugestionSlice = append(*sugestionSlice, val)
 		context.SetValue(name, val)
