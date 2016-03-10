@@ -65,8 +65,8 @@ func worldAcceptorFn(node *ArgNode, in TokenSet) (accepted []argNodeAssignment) 
 }
 func commandAcceptorFn(node *ArgNode, in TokenSet) (accepted []argNodeAssignment) {
 	if len(in) > 0 {
-		if strings.Index(in.Stringify(), node.Name) == 0 ||
-			(len(in) == 1 && strings.Index(node.Name, in.Stringify()) == 0) {
+		if (len(in) == 1 && strings.Index(node.Name, in.Stringify()) == 0) ||
+			(len(in) > 1 && in.Filter(TokenNoWhitespace)[0].ToString() == node.Name) {
 			con, rem := consumeArgumentTokens(in)
 			accepted = append(accepted, argNodeAssignment{Node: node, Tokens: con, overflow: rem})
 		}
@@ -144,9 +144,13 @@ func (an *ArgNode) Handler(rhf RunHandlerFunc) *ArgNode {
 	return an
 }
 
-func (an *ArgNode) Weight() int {
+func (an *ArgNode) Weight(ts TokenSet) int {
 	if an.TypeFlags&CommandNode > 0 {
-		return 2
+		if ts.Trimmed().String() != an.Name {
+			return -100 // We really didnt match 100%
+		} else {
+			return 2
+		}
 	}
 	return 1
 }
@@ -280,7 +284,7 @@ func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
 		var path commandAssignPath
 
 		for _, p := range paths {
-			log.Print(p[0].Node.Name, " = ", p.Score())
+			log.Print(p[0].Node.Name, " = ", p.Score(), ": ", p.String())
 			if p.Score() > min {
 				min = p.Score()
 				path = p
@@ -291,9 +295,10 @@ func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
 			path.Invoke(rc)
 		} else {
 			usage := []string{}
-			if len(paths) > 0 {
-				for _, p := range paths {
-					usage = append(usage, p[0].Node.Usage("\t\t")...)
+			cmd := strings.Split(input, " ")[0]
+			for _, use := range an.Usage("\t\t") {
+				if strings.Index(use, cmd) >= 0 {
+					usage = append(usage, use)
 				}
 			}
 
@@ -411,7 +416,7 @@ func (cap *commandAssignPath) parseNext(result procAssignmentResult) procAssignm
 func (cap *commandAssignPath) Score() int {
 	score := 0
 	for _, ass := range *cap {
-		score += ass.Node.Weight()
+		score += ass.Node.Weight(ass.Tokens)
 	}
 	leaf := cap.leaf()
 

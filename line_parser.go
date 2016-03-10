@@ -84,16 +84,14 @@ func (ts TokenSet) Trimmed() TokenSet {
 	return ts[start:end]
 }
 
-// Modifies this slice and only keep tokens having the type of keep.
 func (ts TokenSet) Filter(keep TokenType) TokenSet {
-	b := ts[:0]
+	b := []Token{}
 	for _, t := range ts {
 		if (t.Type & keep) != 0 {
 			b = append(b, t)
 		}
 	}
-	ts = b
-	return ts
+	return b
 }
 
 // Checks if the set contains printable characters
