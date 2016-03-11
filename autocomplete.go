@@ -87,6 +87,6 @@ func getArgumentInvokerFn(name string) AcInvokerFn {
 	return func(assignment *argNodeAssignment, context RunContext) {
 		val := assignment.Tokens.Stringify()
 		*sugestionSlice = append(*sugestionSlice, val)
-		context.SetValue(name, val)
+		context.Put(name, val)
 	}
 }

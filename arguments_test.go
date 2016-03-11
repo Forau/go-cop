@@ -130,9 +130,9 @@ func TestArgNode_SugestAutoComplete(t *testing.T) {
 func TestCommandAssignPath_Invoke(t *testing.T) {
 	n := NewWorldNode()
 	n.AddSubCommand("cmd").AddArgument("arg1").AddArgument("arg2").Optional().AddArgument("arg3").Handler(func(rc RunContext) {
-		assertEqual(t, "argument1", rc.GetValue("arg1"))
-		assertEqual(t, "arg2\\ nr\\ 2", rc.GetValue("arg2"))
-		assertEqual(t, "'Argument Nummer 3'", rc.GetValue("arg3"))
+		assertEqual(t, "argument1", rc.Get("arg1"))
+		assertEqual(t, "arg2\\ nr\\ 2", rc.Get("arg2"))
+		assertEqual(t, "'Argument Nummer 3'", rc.Get("arg3"))
 	})
 	t.Log("World node: ", n)
 
@@ -146,7 +146,7 @@ func TestCommandAssignPath_Invoke(t *testing.T) {
 		t.Error("Expected only one path to match")
 	}
 
-	drc := &DefaultRunContext{}
+	drc := &DefaultRunContext{values: make(map[string]string)}
 	paths[0].Invoke(drc)
 
 	t.Log("RunContext: ", drc)

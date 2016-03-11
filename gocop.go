@@ -19,39 +19,55 @@ func (rh RunHandlerFunc) HandleCommand(rc RunContext) {
 	rh(rc)
 }
 
+type SugestionProvider struct {
+}
+
 type RunHandler interface {
 	HandleCommand(rc RunContext)
 }
 
 type RunContext interface {
-	SetValue(name, value string)
-	GetValue(name string) string
+	Put(name, value string)
+	Get(name string) string
 
-	SetHandler(rh RunHandler)
+	SugestionProvider() SugestionProvider
+
+	Handler(rh RunHandler)
 	Invoke()
 }
 
-type DefaultRunContext struct {
-	values  map[string]string
-	handler RunHandler
+type RunContextProviderFn func(cp *CommandParser) RunContext
+
+func DefaultRunContextProvider(cp *CommandParser) RunContext {
+	return &DefaultRunContext{
+		values:            make(map[string]string),
+		sugestionProvider: cp.SugestionProvider,
+	}
 }
 
-func (drc *DefaultRunContext) SetValue(name, value string) {
-	if drc.values == nil {
-		drc.values = make(map[string]string)
-	}
+type DefaultRunContext struct {
+	values            map[string]string
+	handler           RunHandler
+	sugestionProvider SugestionProvider
+}
+
+func (drc *DefaultRunContext) Put(name, value string) {
 	drc.values[name] = value
 }
-func (drc *DefaultRunContext) GetValue(name string) string {
+func (drc *DefaultRunContext) Get(name string) string {
 	return drc.values[name]
 }
-func (drc *DefaultRunContext) SetHandler(h RunHandler) {
+func (drc *DefaultRunContext) Handler(h RunHandler) {
 	drc.handler = h
 }
+func (drc *DefaultRunContext) SugestionProvider() SugestionProvider {
+	return drc.sugestionProvider
+}
+
 func (drc *DefaultRunContext) Invoke() {
 	if drc.handler != nil {
 		drc.handler.HandleCommand(drc)
-		log.Print("Invoked with values: ", drc.values)
+		// log.Print("Invoked with values: ", drc.values)
 	} else {
 		log.Printf("Executing RunContext %+v, but did not get a run function...\n", drc)
 	}
@@ -61,10 +77,16 @@ type CommandParser struct {
 	liner *liner.State
 
 	world *ArgNode
+
+	rcProvider        RunContextProviderFn
+	SugestionProvider SugestionProvider
 }
 
 func NewCommandParser() *CommandParser {
-	return &CommandParser{}
+	return &CommandParser{
+		rcProvider:        DefaultRunContextProvider,
+		SugestionProvider: SugestionProvider{},
+	}
 }
 
 func (cp *CommandParser) AutoCompleter(line string) (c []string) {
@@ -95,6 +117,10 @@ func (cp *CommandParser) printHelp(rc RunContext) {
 	}
 }
 
+func (cp *CommandParser) NewRunContext() RunContext {
+	return cp.rcProvider(cp)
+}
+
 func (cp *CommandParser) MainLoop() (err error) {
 	defer func() {
 		switch x := recover().(type) {
@@ -120,7 +146,7 @@ func (cp *CommandParser) MainLoop() (err error) {
 		}
 		cp.liner.AppendHistory(l)
 		fmt.Printf("\x1b[0;36m")
-		err = cp.world.InvokeCommand(l, &DefaultRunContext{})
+		err = cp.world.InvokeCommand(l, cp.NewRunContext())
 		fmt.Print("\x1b[0m")
 		if err != nil {
 			fmt.Print(err)

@@ -278,13 +278,13 @@ func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
 	tokens := Tokenize(input)
 	if tokens.HasText() {
 		paths := an.generateCommandAssingPaths(tokens)
-		log.Print("Invoked PATHS: ", paths)
+		// log.Print("Invoked PATHS: ", paths)
 
 		min := 0
 		var path commandAssignPath
 
 		for _, p := range paths {
-			log.Print(p[0].Node.Name, " = ", p.Score(), ": ", p.String())
+			// 			log.Print(p[0].Node.Name, " = ", p.Score(), ": ", p.String())
 			if p.Score() > min {
 				min = p.Score()
 				path = p
@@ -441,7 +441,7 @@ func (cap *commandAssignPath) Score() int {
 func (cap *commandAssignPath) Invoke(context RunContext) {
 	for _, ass := range *cap {
 		if ass.Node.RunHandler != nil {
-			context.SetHandler(ass.Node.RunHandler)
+			context.Handler(ass.Node.RunHandler)
 		}
 		ass.Node.Invoke(&ass, context)
 	}
