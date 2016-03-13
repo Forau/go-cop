@@ -152,5 +152,4 @@ func (cp *CommandParser) MainLoop() (err error) {
 			fmt.Print(err)
 		}
 	}
-	return
 }

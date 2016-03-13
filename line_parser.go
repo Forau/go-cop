@@ -116,7 +116,7 @@ type acceptFn func(r rune) bool
 // scanner object.
 // This is built much like https://golang.org/src/text/template/parse/lex.go but
 // a bit simpler. It is probably overkill for our simple command parsing requirements,
-// but the spliters and parsers in the normal packages didnt give enough flexability
+// but the spliters and parsers in the normal packages didn't give enough flexability
 // to scan, parse backslashes and return incomplete tokens, without writing some ugly for-loops.
 // Also, a small lex'er is more fun.
 type scanner struct {

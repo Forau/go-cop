@@ -21,7 +21,7 @@ func TestTokenSet_Trimmed(t *testing.T) {
 	trimAndCompare("  This should only trim the head", 1)
 	trimAndCompare("This should only trim the tail   ", 1)
 	trimAndCompare("    This should only trim both   ", 2)
-	trimAndCompare("", 1) // This seems wierd, but "" generates a EOF-token, and it will be trimmed
+	trimAndCompare("", 1) // This seems weird, but "" generates a EOF-token, and it will be trimmed
 
 	if len(TokenSet{}.Trimmed()) != 0 {
 		t.Error("Should have been able to trim a empty token set")

@@ -147,7 +147,7 @@ func (an *ArgNode) Handler(rhf RunHandlerFunc) *ArgNode {
 func (an *ArgNode) Weight(ts TokenSet) int {
 	if an.TypeFlags&CommandNode > 0 {
 		if ts.Trimmed().String() != an.Name {
-			return -100 // We really didnt match 100%
+			return -100 // We didn't match 100%
 		} else {
 			return 2
 		}

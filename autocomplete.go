@@ -19,14 +19,15 @@ func getArgumentAutoSlice(name string) *[]string {
 	return slice
 }
 
-// A function to customize autocomplete replies.
-// Uses a slice of Token as input to make it possible for multi-match types. IE, match all remaining commands
+// Autocomplete sugestion. Returns a slice of possible sugestions
 type AcSugestorFn func(node *ArgNode, in TokenSet) []string
 
+// Implement AcSugestor interface
 func (asf AcSugestorFn) Sugest(node *ArgNode, in TokenSet) []string {
 	return asf(node, in)
 }
 
+// Interface for autocomplete sugestions
 type AcSugestor interface {
 	Sugest(node *ArgNode, in TokenSet) []string
 }
@@ -71,10 +72,12 @@ func getArgumentSugestorFn(name string) AcSugestorFn {
 // A function that registers and applies the value on resultMap
 type AcInvokerFn func(assignment *argNodeAssignment, context RunContext)
 
+// Implement AcInvoker interface
 func (aif AcInvokerFn) Invoke(assignment *argNodeAssignment, context RunContext) {
 	aif(assignment, context)
 }
 
+// Interface for invoking a command, and populate the arguments
 type AcInvoker interface {
 	Invoke(assignment *argNodeAssignment, context RunContext)
 }

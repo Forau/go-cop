@@ -1,4 +1,5 @@
 # go-cop
+[![Go Report Card](https://goreportcard.com/badge/github.com/Forau/gocop)](https://goreportcard.com/report/github.com/Forau/gocop)
 [![Build Status](https://travis-ci.org/Forau/gocop.svg?branch=master)](https://travis-ci.org/Forau/gocop)
 [![GoDoc](https://godoc.org/github.com/Forau/gocop?status.svg)](http://godoc.org/github.com/Forau/gocop)
 
