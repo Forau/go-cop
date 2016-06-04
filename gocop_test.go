@@ -18,7 +18,7 @@ func ExampleCommandParser_NewWorld() {
 	world.AddSubCommand("command2").AddArgument("argument").Optional()
 
 	// Print usage
-	for _, u := range world.Usage("\t") {
+	for _, u := range world.Usage("\t", "\t\t") {
 		log.Print(u)
 	}
 }

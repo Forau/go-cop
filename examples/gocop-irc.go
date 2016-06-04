@@ -91,25 +91,26 @@ func (ic *IrcConn) Connected() bool {
 	return ic.socket != nil
 }
 
-func (ic *IrcConn) SetNick(rc gocop.RunContext) {
+func (ic *IrcConn) SetNick(rc gocop.RunContext) (interface{}, error) {
 	ic.nick = rc.Get("nick")
 	if ic.Connected() {
 		ic.SendRaw("NICK " + ic.nick)
 	}
+	return nil, nil
 }
+
 func (ic *IrcConn) SendRaw(data string) {
 	if ic.Connected() {
 		ic.write <- data + "\r\n"
 	}
 }
 
-func (ic *IrcConn) Connect(rc gocop.RunContext) {
+func (ic *IrcConn) Connect(rc gocop.RunContext) (interface{}, error) {
 	nick := rc.Get("nick")
 	user := rc.Get("user")
 	if nick == "" {
 		if ic.nick == "" {
-			fmt.Println("Please set nick. Can add it after server on /connect")
-			return
+			return nil, fmt.Errorf("Please set nick. Can add it after server on /connect")
 		} else {
 			nick = ic.nick
 		}
@@ -165,6 +166,7 @@ func (ic *IrcConn) Connect(rc gocop.RunContext) {
 	// Send out login....
 	ic.SendRaw("NICK " + nick)
 	ic.SendRaw("USER " + user + " 0.0.0.0 0.0.0.0 :" + nick)
+	return "<connected>", nil
 }
 
 func (ic *IrcConn) handleIncomming(in string) {
@@ -193,32 +195,39 @@ func main() {
 	world := cp.NewWorld()
 	world.AddSubCommand("/nick").Handler(irc.SetNick).AddArgument("nick")
 	world.AddSubCommand("/connect").Handler(irc.Connect).AddArgument("server").AddArgument("nick").Optional().AddArgument("user").Optional()
-	world.AddSubCommand("/raw").AddArgument("data").Times(1, 999).Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/raw").AddArgument("data").Times(1, 999).Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw(rc.Get("data"))
+		return
 	})
 
-	world.AddSubCommand("/join").AddArgument("channel").Times(1, 2).Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/join").AddArgument("channel").Times(1, 2).Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw("JOIN " + rc.Get("channel"))
+		return
 	})
 
-	world.AddSubCommand("/msg").AddArgument("user").AddArgument("message").Times(1, 999).Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/msg").AddArgument("user").AddArgument("message").Times(1, 999).Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw("PRIVMSG " + rc.Get("user") + " :" + rc.Get("message"))
+		return
 	})
 
-	world.AddSubCommand("/list").AddArgument("channel").Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/list").AddArgument("channel").Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw("LIST " + rc.Get("channel"))
+		return
 	})
 
-	world.AddSubCommand("/who").AddArgument("channel").Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/who").AddArgument("channel").Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw("WHO " + rc.Get("channel"))
+		return
 	})
 
-	world.AddSubCommand("/whois").AddArgument("nick").Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/whois").AddArgument("nick").Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw("WHOIS " + rc.Get("nick"))
+		return
 	})
 
-	world.AddSubCommand("/quit").Handler(func(rc gocop.RunContext) {
+	world.AddSubCommand("/quit").Handler(func(rc gocop.RunContext) (res interface{}, err error) {
 		irc.SendRaw("QUIT :" + rc.Get("message"))
+		return
 	}).AddArgument("message").Times(0, 999)
 
 	log.Printf("Starting with PID %d, and parser %+v\n", os.Getpid(), cp)

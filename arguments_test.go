@@ -86,7 +86,7 @@ func TestArgNode_generateCommandAssingPathsWithOptionalPath(t *testing.T) {
 	oarg.AddArgument("noopt")
 	oarg.AddSubCommand("sub")
 
-	for _, u := range n.Usage("\t") {
+	for _, u := range n.Usage("\t", "\t\t") {
 		t.Log(u)
 	}
 
@@ -129,10 +129,11 @@ func TestArgNode_SugestAutoComplete(t *testing.T) {
 
 func TestCommandAssignPath_Invoke(t *testing.T) {
 	n := NewWorldNode()
-	n.AddSubCommand("cmd").AddArgument("arg1").AddArgument("arg2").Optional().AddArgument("arg3").Handler(func(rc RunContext) {
+	n.AddSubCommand("cmd").AddArgument("arg1").AddArgument("arg2").Optional().AddArgument("arg3").Handler(func(rc RunContext) (interface{}, error) {
 		assertEqual(t, "argument1", rc.Get("arg1"))
 		assertEqual(t, "arg2\\ nr\\ 2", rc.Get("arg2"))
 		assertEqual(t, "'Argument Nummer 3'", rc.Get("arg3"))
+		return "Good", nil
 	})
 	t.Log("World node: ", n)
 

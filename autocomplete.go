@@ -85,6 +85,11 @@ type AcInvoker interface {
 func nopInvokerFn(assignment *argNodeAssignment, context RunContext) {
 }
 
+func cmdInvokerFn(assignment *argNodeAssignment, context RunContext) {
+	name := assignment.Node.Name
+	context.Put(name, name) // We save our name, so we know this command was invoked
+}
+
 func getArgumentInvokerFn(name string) AcInvokerFn {
 	sugestionSlice := getArgumentAutoSlice(name)
 	return func(assignment *argNodeAssignment, context RunContext) {

@@ -8,22 +8,33 @@ package gocop
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/peterh/liner"
 )
 
-type RunHandlerFunc func(rc RunContext)
+type RunHandlerFunc func(rc RunContext) (interface{}, error)
 
-func (rh RunHandlerFunc) HandleCommand(rc RunContext) {
-	rh(rc)
+func (rh RunHandlerFunc) HandleCommand(rc RunContext) (interface{}, error) {
+	return rh(rc)
 }
 
 type SugestionProvider struct {
 }
 
 type RunHandler interface {
-	HandleCommand(rc RunContext)
+	HandleCommand(rc RunContext) (interface{}, error)
+}
+
+type ResultHandlerFn func(interface{}, error)
+
+var DefaultResultHandler = func(in interface{}, err error) {
+	if err != nil {
+		fmt.Print("\x1b[0;31m")
+		fmt.Print(err)
+	} else {
+		fmt.Print("\x1b[0;35m")
+		fmt.Printf("%+v\n", in)
+	}
 }
 
 type RunContext interface {
@@ -33,7 +44,7 @@ type RunContext interface {
 	SugestionProvider() SugestionProvider
 
 	Handler(rh RunHandler)
-	Invoke()
+	Invoke() (interface{}, error)
 }
 
 type RunContextProviderFn func(cp *CommandParser) RunContext
@@ -64,12 +75,11 @@ func (drc *DefaultRunContext) SugestionProvider() SugestionProvider {
 	return drc.sugestionProvider
 }
 
-func (drc *DefaultRunContext) Invoke() {
+func (drc *DefaultRunContext) Invoke() (interface{}, error) {
 	if drc.handler != nil {
-		drc.handler.HandleCommand(drc)
-		// log.Print("Invoked with values: ", drc.values)
+		return drc.handler.HandleCommand(drc)
 	} else {
-		log.Printf("Executing RunContext %+v, but did not get a run function...\n", drc)
+		return nil, fmt.Errorf("Executing RunContext %+v, but did not get a run function...\n", drc)
 	}
 }
 
@@ -80,12 +90,14 @@ type CommandParser struct {
 
 	rcProvider        RunContextProviderFn
 	SugestionProvider SugestionProvider
+	ResultHandler     ResultHandlerFn
 }
 
 func NewCommandParser() *CommandParser {
 	return &CommandParser{
 		rcProvider:        DefaultRunContextProvider,
 		SugestionProvider: SugestionProvider{},
+		ResultHandler:     DefaultResultHandler,
 	}
 }
 
@@ -110,11 +122,12 @@ func (cp *CommandParser) AddStandardCommands(an *ArgNode) {
 	an.AddSubCommand("help").Handler(cp.printHelp).AddArgument("help_argument").Optional()
 }
 
-func (cp *CommandParser) printHelp(rc RunContext) {
+func (cp *CommandParser) printHelp(rc RunContext) (interface{}, error) {
 	fmt.Println("Usage:")
-	for _, u := range cp.world.Usage("\t\t") {
+	for _, u := range cp.world.Usage("\t\t", "\t\t\t") {
 		fmt.Println(u)
 	}
+	return nil, nil
 }
 
 func (cp *CommandParser) NewRunContext() RunContext {
@@ -146,10 +159,8 @@ func (cp *CommandParser) MainLoop() (err error) {
 		}
 		cp.liner.AppendHistory(l)
 		fmt.Printf("\x1b[0;36m")
-		err = cp.world.InvokeCommand(l, cp.NewRunContext())
+		res, err := cp.world.InvokeCommand(l, cp.NewRunContext())
+		cp.ResultHandler(res, err)
 		fmt.Print("\x1b[0m")
-		if err != nil {
-			fmt.Print(err)
-		}
 	}
 }

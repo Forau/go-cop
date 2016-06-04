@@ -106,6 +106,7 @@ const (
 
 type ArgNode struct {
 	Name      string
+	Descr     string
 	Children  []*ArgNode
 	TypeFlags NodeTypeFlags
 	AcSugestorFn
@@ -132,7 +133,7 @@ func (an *ArgNode) AddCustomNode(name string, acsFn AcSugestorFn, aciFn AcInvoke
 }
 
 func (an *ArgNode) AddSubCommand(name string) *ArgNode {
-	return an.AddCustomNode(name, commandSugestorFn, nopInvokerFn, commandAcceptorFn, CommandNode)
+	return an.AddCustomNode(name, commandSugestorFn, cmdInvokerFn, commandAcceptorFn, CommandNode)
 }
 
 func (an *ArgNode) AddArgument(name string) *ArgNode {
@@ -240,11 +241,13 @@ func (an *ArgNode) generateCommandAssingPaths(in TokenSet) (finalPaths []command
 	return
 }
 
-func (an *ArgNode) Usage(prfix string) (ret []string) {
+func (an *ArgNode) Usage(prfix, descpr string) (ret []string) {
 	var buf bytes.Buffer
 
+	isArg := an.TypeFlags&ArgumentNode != 0
+
 	buf.WriteString(prfix)
-	if an.TypeFlags&ArgumentNode != 0 {
+	if isArg {
 		buf.WriteRune('[')
 	}
 
@@ -258,7 +261,7 @@ func (an *ArgNode) Usage(prfix string) (ret []string) {
 		buf.WriteRune('?')
 	}
 
-	if an.TypeFlags&ArgumentNode != 0 {
+	if isArg {
 		buf.WriteRune(']')
 	}
 
@@ -268,13 +271,25 @@ func (an *ArgNode) Usage(prfix string) (ret []string) {
 		buf.WriteRune(' ')
 		pr := buf.String()
 		for _, c := range an.Children {
-			ret = append(ret, c.Usage(pr)...)
+			ret = append(ret, c.Usage(pr, descpr)...)
+		}
+	}
+	if an.Descr != "" {
+		if isArg {
+			ret = append(ret, descpr+an.Name+": "+an.Descr)
+		} else {
+			ret = append(ret, descpr+"* "+an.Descr)
 		}
 	}
 	return
 }
 
-func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
+func (an *ArgNode) Description(str string) *ArgNode {
+	an.Descr = str
+	return an
+}
+
+func (an *ArgNode) InvokeCommand(input string, rc RunContext) (res interface{}, err error) {
 	tokens := Tokenize(input)
 	if tokens.HasText() {
 		paths := an.generateCommandAssingPaths(tokens)
@@ -292,20 +307,20 @@ func (an *ArgNode) InvokeCommand(input string, rc RunContext) error {
 		}
 
 		if path != nil {
-			path.Invoke(rc)
+			res, err = path.Invoke(rc)
 		} else {
 			usage := []string{}
 			cmd := strings.Split(input, " ")[0]
-			for _, use := range an.Usage("\t\t") {
+			for _, use := range an.Usage("\t\t", "\t\t\t: ") {
 				if strings.Index(use, cmd) >= 0 {
 					usage = append(usage, use)
 				}
 			}
 
-			return &InvalidArgument{"Unknown command: " + input, usage}
+			err = &InvalidArgument{"Unknown command: " + input, usage}
 		}
 	}
-	return nil
+	return
 }
 
 type commandAssignPath []argNodeAssignment
@@ -438,12 +453,12 @@ func (cap *commandAssignPath) Score() int {
 	return score
 }
 
-func (cap *commandAssignPath) Invoke(context RunContext) {
+func (cap *commandAssignPath) Invoke(context RunContext) (interface{}, error) {
 	for _, ass := range *cap {
 		if ass.Node.RunHandler != nil {
 			context.Handler(ass.Node.RunHandler)
 		}
 		ass.Node.Invoke(&ass, context)
 	}
-	context.Invoke()
+	return context.Invoke()
 }
